@@ -12,6 +12,7 @@ services:
 
     kafka:
         image: confluentinc/cp-kafka
+        restart: always
         depends_on:
             - zookeeper
         environment:
@@ -21,11 +22,13 @@ services:
     
     connect:
         image: confluentinc/cp-kafka-connect:latest
+        restart: always
         ports: 
             - 8083:28083
         depends_on: 
             - zookeeper
             - kafka
+            - elasticsearch
         environment: 
             CONNECT_REST_PORT: 28083
             CONNECT_GROUP_ID: kafka-connect
@@ -49,29 +52,42 @@ services:
             - ./kafka-connect-jars:/etc/kafka-connect/jars
 
     elasticsearch:
-        image: elasticsearch:7.9.1
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+        restart: always
         environment: 
             "discovery.type": single-node
         ports: 
             - 9200:9200
-        volumes: 
-            - ./volumes/es:/usr/share/elasticsearch/data
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - elasticsearch:/usr/share/elasticsearch/data
     
     kibana:
-        image: kibana:7.9.1
+        depends_on: 
+            - elasticsearch
+        image: docker.elastic.co/kibana/kibana:7.9.1
         ports: 
             - 5601:5601
-    
+        environment: 
+            SERVER_NAME: 0.0.0.0
+            ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+
     postgres_keycloak:
         image: postgres:alpine
         volumes:
-            - ./volumes/db:/var/lib/postgresql/data
+            - postgres-keycloak:/var/lib/postgresql/data
         environment:
             POSTGRES_USER: keycloak
             POSTGRES_DB: keycloak
             POSTGRES_PASSWORD: 123456789_keycloak
+        ports:
+            - 5432:5432
 
     keycloak:
+        restart: always
         depends_on:
             - kafka
             - postgres_keycloak
@@ -97,3 +113,20 @@ services:
             - 9000:9000
         environment: 
             KAFKA_BROKERCONNECT: "PLAINTEXT://kafka:29092"
+
+    grafana:
+        image: grafana/grafana
+        ports: 
+            - 3000:3000
+        volumes:
+            - grafana:/usr/lib/grafana
+        #environment: 
+            # GF_INSTALL_PLUGINS: 
+
+
+volumes:
+    elasticsearch:
+    grafana:
+    postgres-keycloak:
+
+    
