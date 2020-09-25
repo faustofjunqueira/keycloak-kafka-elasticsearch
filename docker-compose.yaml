@@ -56,6 +56,8 @@ services:
         restart: always
         environment: 
             "discovery.type": single-node
+            "bootstrap.memory_lock": "true"
+            ES_JAVA_OPTS: "-Xms512m -Xmx512m"
         ports: 
             - 9200:9200
         ulimits:
@@ -91,37 +93,29 @@ services:
         depends_on:
             - kafka
             - postgres_keycloak
+            - elasticsearch
         build:
             context: ./
             dockerfile: Dockerfile
         ports: 
             - 8180:8080
         environment:
-            # KEYCLOAK_LOGLEVEL: DEBUG
+            KEYCLOAK_LOGLEVEL: DEBUG
             KEYCLOAK_USER: admin
             KEYCLOAK_PASSWORD: admin
             DB_VENDOR: postgres
             DB_ADDR: postgres_keycloak
             DB_USER: keycloak
             DB_PASSWORD: 123456789_keycloak
-    
-    kafdrop:
-        image: obsidiandynamics/kafdrop
-        depends_on: 
-            - kafka
-        ports:
-            - 9000:9000
-        environment: 
-            KAFKA_BROKERCONNECT: "PLAINTEXT://kafka:29092"
 
     grafana:
         image: grafana/grafana
         ports: 
             - 3000:3000
         volumes:
-            - grafana:/usr/lib/grafana
-        #environment: 
-            # GF_INSTALL_PLUGINS: 
+            - grafana:/var/lib/grafana
+        environment: 
+            GF_INSTALL_PLUGINS: grafana-piechart-panel
 
 
 volumes:
